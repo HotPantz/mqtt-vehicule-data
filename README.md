@@ -143,6 +143,15 @@ Example log entry (`log.txt`):
 ## License
 MIT License - Free for educational and commercial use. See [LICENSE](LICENSE) for details.
 
+## Contact
+
+For any questions or support, please contact:
+
+- **Selyan KABLIA**: [selyan.kablia@ens.uvsq.fr](mailto:selyan.kablia@ens.uvsq.fr)
+- **Nathan LESTRADE**: [nathan.lestrade@ens.uvsq.fr](mailto:natha.lestrade@ens.uvsq.fr)
+- **Frederic MUSIAL**: [frederic.musial@ens.uvsq.fr](mailto:frederic.musial@ens.uvsq.fr)
+
+
 ---
 
 **Happy vehicular data streaming!** 🚗💨
