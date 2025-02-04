@@ -1,33 +1,33 @@
-```markdown
 # MQTT Vehicle Data Project
 
-![MQTT Vehicle Data Project](https://img.shields.io/badge/Python-3.7%2B-blue)
-![MQTT Protocol](https://img.shields.io/badge/Protocol-MQTT-orange)
-![GUI Framework](https://img.shields.io/badge/GUI-Tkinter-green)
+![Python](https://img.shields.io/badge/Python-3.7%2B-blue) ![MQTT](https://img.shields.io/badge/Protocol-MQTT-orange) ![GUI](https://img.shields.io/badge/GUI-Tkinter-green)
 
-A complete solution for transmitting and decoding vehicle data using MQTT protocol. Includes both producer and consumer applications with intuitive GUIs.
+A complete solution for transmitting and decoding vehicle data using the MQTT protocol. This project includes a **producer** and a **consumer** application, both featuring user-friendly GUIs.
 
 ## Table of Contents
-- [Features](#features)
+- [Overview](#overview)
 - [Prerequisites](#prerequisites)
 - [Installation](#installation)
-- [File Structure](#file-structure)
+- [Network Requirements](#network-requirements)
 - [Broker Setup](#broker-setup)
-- [Usage](#usage)
-  - [Producer](#producer)
-  - [Consumer](#consumer)
+- [Role-Specific Instructions](#role-specific-instructions)
+  - [Producer Instructions](#producer-instructions)
+  - [Consumer Instructions](#consumer-instructions)
+- [File Structure](#file-structure)
 - [Sample Data](#sample-data)
 - [Troubleshooting](#troubleshooting)
 - [License](#license)
 
-## Features
+## Overview
+This project enables seamless vehicle data transmission over MQTT. Key features include:
 - 📡 MQTT-based packet transmission
-- 🖥️ Dual GUI interface for both producer and consumer
-- 📁 PCAP file handling with preview capabilities
+- 🖥️ GUI for both producer and consumer
+- 📁 PCAP file handling and preview
 - ⏱️ Adjustable transmission delay
 - 📊 Real-time progress tracking
 - 🚗 Vehicle data decoding (position, speed, heading)
 - 📝 Message logging and saving
+- 🔧 Configurable **broker IP, port, and topic name** in both producer and consumer
 
 ## Prerequisites
 - Python 3.7+
@@ -36,6 +36,82 @@ A complete solution for transmitting and decoding vehicle data using MQTT protoc
   ```bash
   pip install scapy paho-mqtt
   ```
+- Tkinter (for GUI support)
+  - Ubuntu/Debian:
+    ```bash
+    sudo apt-get install tk
+    ```
+  - Arch Linux:
+    ```bash
+    sudo pacman -S tk
+    ```
+
+## Installation
+Clone the repository:
+```bash
+git clone https://github.com/your-repo/mqtt-vehicle-data.git
+cd mqtt-vehicle-data
+```
+
+## Network Requirements
+- All machines (broker, producer, and consumer) **must be on the same network**.
+- Ensure firewall rules allow MQTT traffic (default port **1883**).
+- If using a virtualized environment, configure networking to **Bridged Adapter** for proper communication.
+
+## Broker Setup
+### Install and Configure Mosquitto
+1. Install Mosquitto MQTT broker:
+   - Ubuntu/Debian:
+     ```bash
+     sudo apt-get install mosquitto mosquitto-clients
+     ```
+   - Arch Linux:
+     ```bash
+     sudo pacman -S mosquitto
+     ```
+2. Configure Mosquitto to allow anonymous connections (for testing):
+   ```ini
+   sudo nano /etc/mosquitto/mosquitto.conf
+   ```
+   Add the following lines:
+   ```ini
+   allow_anonymous true
+   listener 1883 0.0.0.0
+   ```
+3. Restart Mosquitto service:
+   ```bash
+   sudo systemctl restart mosquitto
+   ```
+
+## Role-Specific Instructions
+### Producer Instructions
+1. Start the producer application:
+   ```bash
+   python producteur.py
+   ```
+2. GUI Controls:
+   - 🖿 **Select Files**: Choose PCAP files to send
+   - 👁️ **Preview**: Display packet summaries before transmission
+   - 🎚️ **Transmission Delay**: Adjust delay between packets (0-1s)
+   - ▶️ **Start Transmission**: Begin sending packets to the broker
+   - ⏸️/⏯️ **Pause/Resume**: Control transmission dynamically
+   - 🌐 **Set Broker IP/Port and Topic**: Choose custom MQTT settings
+
+![Producer GUI](https://via.placeholder.com/600x400?text=Producer+GUI+Preview)
+
+### Consumer Instructions
+1. Start the consumer application:
+   ```bash
+   python consommateur.py
+   ```
+2. GUI Features:
+   - 📡 **Connect** to broker with IP, Port, and Topic
+   - 📨 **View Raw Packets** in real time
+   - 🚘 **Decoded Vehicle Data** (position, speed, heading)
+   - 💾 **Save Messages** to a log file
+   - 🌐 **Set Broker IP/Port and Topic**: Choose custom MQTT settings
+
+![Consumer GUI](https://via.placeholder.com/600x400?text=Consumer+GUI+Preview)
 
 ## File Structure
 ```
@@ -46,50 +122,6 @@ mqtt-vehicle-data/
 ├── log.txt                # Sample packet log
 └── README.md              # This documentation
 ```
-
-## Broker Setup
-1. Install Mosquitto:
-   ```bash
-   sudo apt-get install mosquitto mosquitto-clients
-   ```
-2. Configure `/etc/mosquitto/mosquitto.conf`:
-   ```ini
-   allow_anonymous true
-   listener 1883 0.0.0.0
-   ```
-3. Restart service:
-   ```bash
-   sudo systemctl restart mosquitto
-   ```
-
-## Usage
-
-### Producer
-1. Launch application:
-   ```bash
-   python producteur.py
-   ```
-2. GUI Controls:
-   - 🖿 **Choisir fichiers**: Select PCAP files
-   - 👁️ **Prévisualiser**: Preview packet summaries
-   - 🎚️ Delay slider: Set transmission interval (0-1s)
-   - ▶️ **Démarrer l'envoi**: Start transmission
-   - ⏸️/⏯️ Pause/Resume controls
-
-![Producer GUI](https://via.placeholder.com/600x400?text=Producer+GUI+Preview)
-
-### Consumer
-1. Launch application:
-   ```bash
-   python consommateur.py
-   ```
-2. GUI Features:
-   - 📡 Connect to broker with IP/Port/Topic
-   - 📨 Real-time packet display in Raw Packets tab
-   - 🚘 Decoded vehicle data in Vehicle Info tab
-   - 💾 Save messages to text file
-
-![Consumer GUI](https://via.placeholder.com/600x400?text=Consumer+GUI+Preview)
 
 ## Sample Data
 Example log entry (`log.txt`):
@@ -103,10 +135,10 @@ Example log entry (`log.txt`):
 ```
 
 ## Troubleshooting
-- 🔗 **Connection Issues**: Verify broker IP/port and network connectivity
-- 📦 **Missing Packets**: Check topic consistency between producer/consumer
-- 🐞 **Decoding Errors**: Ensure PCAP files contain valid ETSI ITS CAM data
-- ⏳ **Performance**: Reduce transmission speed for large PCAP files
+- 🔗 **Connection Issues**: Ensure all devices are on the same network and verify broker IP/port.
+- 📦 **Missing Packets**: Check that producer and consumer are using the same MQTT topic.
+- 🐞 **Decoding Errors**: Ensure PCAP files contain valid ETSI ITS CAM data.
+- ⏳ **Performance Issues**: Reduce transmission speed for large PCAP files.
 
 ## License
 MIT License - Free for educational and commercial use. See [LICENSE](LICENSE) for details.
@@ -114,4 +146,4 @@ MIT License - Free for educational and commercial use. See [LICENSE](LICENSE) fo
 ---
 
 **Happy vehicular data streaming!** 🚗💨
-```
+
