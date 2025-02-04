@@ -13,8 +13,8 @@ def decode_vehicle_info(packet):
         return "Insufficient data for vehicle info"
     source_pos = raw[26:46]
     timestamp = int.from_bytes(raw[46:50], byteorder='big')
-    latitude_int = int.from_bytes(raw[50:54], byteorder='big', signed=True)
-    longitude_int = int.from_bytes(raw[54:58], byteorder='big', signed=True)
+    latitude_int = int.from_bytes(raw[38:42], byteorder='big', signed=True)
+    longitude_int = int.from_bytes(raw[42:46], byteorder='big', signed=True)
     speed_int = int.from_bytes(raw[58:60], byteorder='big')
     heading_int = int.from_bytes(raw[60:62], byteorder='big')
     latitude = latitude_int / 1e7
