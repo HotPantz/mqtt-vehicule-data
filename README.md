@@ -8,6 +8,7 @@ A complete solution for transmitting and decoding vehicle data using the MQTT pr
 - [Overview](#overview)
 - [Prerequisites](#prerequisites)
 - [Installation](#installation)
+- [Virtual Environment Setup](#virtual-environment-setup)
 - [Network Requirements](#network-requirements)
 - [Broker Setup](#broker-setup)
 - [Role-Specific Instructions](#role-specific-instructions)
@@ -17,10 +18,11 @@ A complete solution for transmitting and decoding vehicle data using the MQTT pr
 - [Sample Data](#sample-data)
 - [Troubleshooting](#troubleshooting)
 - [License](#license)
+- [Contact](#contact)
 
 ## Overview
 This project enables seamless vehicle data transmission over MQTT. Key features include:
-- 📡 MQTT-based packet transmission
+- 📱 MQTT-based packet transmission
 - 🖥️ GUI for both producer and consumer
 - 📁 PCAP file handling and preview
 - ⏱️ Adjustable transmission delay
@@ -34,7 +36,7 @@ This project enables seamless vehicle data transmission over MQTT. Key features 
 - Mosquitto MQTT broker
 - Required Python packages:
   ```bash
-  pip install scapy paho-mqtt
+  pip install scapy paho-mqtt flask flask-socketio folium pillow
   ```
 - Tkinter (for GUI support)
   - Ubuntu/Debian:
@@ -52,6 +54,25 @@ Clone the repository:
 git clone https://github.com/your-repo/mqtt-vehicle-data.git
 cd mqtt-vehicle-data
 ```
+
+## Virtual Environment Setup
+1. Create a virtual environment:
+   ```bash
+   python -m venv venv
+   ```
+2. Activate the virtual environment:
+   - On Linux/macOS:
+     ```bash
+     source venv/bin/activate
+     ```
+   - On Windows:
+     ```bash
+     venv\Scripts\activate
+     ```
+3. Install the required packages:
+   ```bash
+   pip install scapy paho-mqtt flask flask-socketio folium pillow
+   ```
 
 ## Network Requirements
 - All machines (broker, producer, and consumer) **must be on the same network**.
@@ -84,15 +105,16 @@ cd mqtt-vehicle-data
    ```
 
 ## Role-Specific Instructions
+
 ### Producer Instructions
 1. Start the producer application:
    ```bash
    python producteur.py
    ```
 2. GUI Controls:
-   - 🖿 **Select Files**: Choose PCAP files to send
-   - 👁️ **Preview**: Display packet summaries before transmission
-   - 🎚️ **Transmission Delay**: Adjust delay between packets (0-1s)
+   - 🗃 **Select Files**: Choose PCAP files to send
+   - 👁 **Preview**: Display packet summaries before transmission
+   - ⏱️ **Transmission Delay**: Adjust delay between packets (0-1s)
    - ▶️ **Start Transmission**: Begin sending packets to the broker
    - ⏸️/⏯️ **Pause/Resume**: Control transmission dynamically
    - 🌐 **Set Broker IP/Port and Topic**: Choose custom MQTT settings
@@ -105,10 +127,10 @@ cd mqtt-vehicle-data
    python consommateur.py
    ```
 2. GUI Features:
-   - 📡 **Connect** to broker with IP, Port, and Topic
+   - 🛡 **Connect** to broker with IP, Port, and Topic
    - 📨 **View Raw Packets** in real time
    - 🚘 **Decoded Vehicle Data** (position, speed, heading)
-   - 💾 **Save Messages** to a log file
+   - 🔒 **Save Messages** to a log file
    - 🌐 **Set Broker IP/Port and Topic**: Choose custom MQTT settings
 
 ![Consumer GUI](https://via.placeholder.com/600x400?text=Consumer+GUI+Preview)
@@ -116,41 +138,32 @@ cd mqtt-vehicle-data
 ## File Structure
 ```
 mqtt-vehicle-data/
-├── consommateur.py        # Consumer application
+├── consommateur.py        # Consumer application(not used anymore)
 ├── producteur.py          # Producer application
-├── etsi-its-cam-*.pcapng  # Sample PCAP files (secured/unsecured)
-├── log.txt                # Sample packet log
+├── etsi-its-cam-secured.pcapng    # Sample PCAP file (secured)
+├── etsi-its-cam-unsecured.pcapng  # Sample PCAP file (unsecured)
+├── app.py                 # Flask application for dynamic map display
+├── templates/
+│   └── index.html         # HTML template for Consumer application
 └── README.md              # This documentation
 ```
 
-## Sample Data
-Example log entry (`log.txt`):
-```txt
-###[ Ethernet ]###
-  dst       = 62:61:3a:37:34:3a
-  src       = 39:37:3a:30:35:3a
-  type      = 0x6134
-###[ Raw ]###
-     load      = b':1d > ff:ff:ff:ff:ff:ff (0x8947) / Raw'
-```
 
 ## Troubleshooting
 - 🔗 **Connection Issues**: Ensure all devices are on the same network and verify broker IP/port.
 - 📦 **Missing Packets**: Check that producer and consumer are using the same MQTT topic.
-- 🐞 **Decoding Errors**: Ensure PCAP files contain valid ETSI ITS CAM data.
+- 🧐 **Decoding Errors**: Ensure PCAP files contain valid ETSI ITS CAM data.
 - ⏳ **Performance Issues**: Reduce transmission speed for large PCAP files.
 
 ## License
-MIT License - Free for educational and commercial use. See [LICENSE](LICENSE) for details.
+MIT License - Free for educational and commercial use. See LICENSE for details.
 
 ## Contact
-
 For any questions or support, please contact:
 
-- **Selyan KABLIA**: [selyan.kablia@ens.uvsq.fr](mailto:selyan.kablia@ens.uvsq.fr)
-- **Nathan LESTRADE**: [nathan.lestrade@ens.uvsq.fr](mailto:natha.lestrade@ens.uvsq.fr)
-- **Frederic MUSIAL**: [frederic.musial@ens.uvsq.fr](mailto:frederic.musial@ens.uvsq.fr)
-
+- **Selyan KABLIA**: selyan.kablia@ens.uvsq.fr
+- **Nathan LESTRADE**: nathan.lestrade@ens.uvsq.fr
+- **Frederic MUSIAL**: frederic.musial@ens.uvsq.fr
 
 ---
 

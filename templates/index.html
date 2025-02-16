@@ -1,0 +1,158 @@
+<!-- templates/index.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Flask App with Tabs & Configuration</title>
+  <!-- Bootstrap CSS -->
+  <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css">
+  <!-- Leaflet CSS for Map -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.3/dist/leaflet.css"/>
+  <style>
+    #map { height: 600px; }
+    .tab-content { margin-top: 20px; }
+    pre { white-space: pre-wrap; }
+  </style>
+</head>
+<body>
+<div class="container">
+  <h1>Flask App with Tabs & Configuration</h1>
+  <!-- Nav tabs -->
+  <ul class="nav nav-tabs" id="myTab" role="tablist">
+    <li class="nav-item">
+      <a class="nav-link active" id="raw-tab" data-toggle="tab" href="#raw" role="tab">Raw Data</a>
+    </li>
+    <li class="nav-item">
+      <a class="nav-link" id="translated-tab" data-toggle="tab" href="#translated" role="tab">Translated Data</a>
+    </li>
+    <li class="nav-item">
+      <a class="nav-link" id="map-tab" data-toggle="tab" href="#mapTab" role="tab">Map</a>
+    </li>
+    <li class="nav-item">
+      <a class="nav-link" id="config-tab" data-toggle="tab" href="#configTab" role="tab">Configuration</a>
+    </li>
+  </ul>
+  <!-- Tab panes -->
+  <div class="tab-content" id="myTabContent">
+    <!-- Raw Data Tab -->
+    <div class="tab-pane fade show active" id="raw" role="tabpanel">
+      <h3>Raw Data</h3>
+      <pre id="rawContainer"></pre>
+    </div>
+    <!-- Translated Data Tab -->
+    <div class="tab-pane fade" id="translated" role="tabpanel">
+      <h3>Translated Data</h3>
+      <pre id="translatedContainer"></pre>
+    </div>
+    <!-- Map Tab -->
+    <div class="tab-pane fade" id="mapTab" role="tabpanel">
+      <h3>Map</h3>
+      <div id="map"></div>
+    </div>
+    <!-- Configuration Tab -->
+    <div class="tab-pane fade" id="configTab" role="tabpanel">
+      <h3>MQTT Configuration</h3>
+      <form id="configForm">
+        <div class="form-group">
+          <label for="broker">Broker IP:</label>
+          <input type="text" class="form-control" id="broker" name="broker" value="127.0.0.1">
+        </div>
+        <div class="form-group">
+          <label for="port">Port:</label>
+          <input type="text" class="form-control" id="port" name="port" value="1883">
+        </div>
+        <div class="form-group">
+          <label for="topic">Topic:</label>
+          <input type="text" class="form-control" id="topic" name="topic" value="v2v">
+        </div>
+        <button type="submit" class="btn btn-primary">Update Config</button>
+      </form>
+      <button id="connectButton" class="btn btn-success mt-3">Connect to Broker</button>
+      <div id="configStatus" class="mt-2"></div>
+    </div>
+  </div>
+</div>
+
+<!-- jQuery (full version) -->
+<script src="https://code.jquery.com/jquery-3.2.1.min.js"></script>
+<!-- Popper.js and Bootstrap JS -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.12.9/umd/popper.min.js"></script>
+<script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/js/bootstrap.min.js"></script>
+<!-- SocketIO -->
+<script src="//cdnjs.cloudflare.com/ajax/libs/socket.io/4.6.1/socket.io.min.js"></script>
+<!-- Leaflet JS -->
+<script src="https://unpkg.com/leaflet@1.9.3/dist/leaflet.js"></script>
+<script>
+  // SocketIO connection
+  var socket = io();
+
+  socket.on('connect', function() {
+      console.log("Connected to SocketIO server");
+  });
+  socket.on('connect_error', function(err) {
+      console.error("Connection error:", err);
+  });
+
+  // Append raw and translated messages with debugging output
+  var rawContainer = document.getElementById('rawContainer');
+  var translatedContainer = document.getElementById('translatedContainer');
+
+  socket.on('raw', function(msg) {
+      console.log("Raw message received:", msg);
+      rawContainer.innerText += msg.data + "\n\n";
+  });
+  socket.on('translated', function(msg) {
+      console.log("Translated message received:", msg);
+      translatedContainer.innerText += msg.data + "\n\n";
+  });
+  socket.on('update', function(data) {
+      console.log("Update received:", data);
+      // Update marker on the map
+      var id = data.vehicle_id, lat = data.latitude, lon = data.longitude;
+      if (markers[id]) {
+          markers[id].setLatLng([lat, lon]);
+      } else {
+          markers[id] = L.marker([lat, lon]).addTo(map).bindPopup("Vehicle ID: " + id);
+      }
+  });
+
+  // Initialize Leaflet Map
+  var map = L.map('map').setView([48.8566, 2.3522], 12);
+  L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map);
+  var markers = {};
+
+  // Handle Configuration Form submission
+  document.getElementById('configForm').addEventListener('submit', function(e) {
+      e.preventDefault();
+      var formData = new FormData(e.target);
+      console.log("Submitting configuration:", formData);
+      fetch('/update_config', { method: 'POST', body: formData })
+        .then(response => response.json())
+        .then(result => {
+           console.log("Config update result:", result);
+           document.getElementById('configStatus').innerText = "Config updated: Broker " +
+             result.broker + ", Port " + result.port + ", Topic " + result.topic;
+        })
+        .catch(error => {
+            console.error("Error updating configuration:", error);
+            document.getElementById('configStatus').innerText = "Error updating configuration";
+        });
+  });
+  
+  // Handle Connect to Broker button click
+  document.getElementById('connectButton').addEventListener('click', function() {
+      console.log("Connecting to broker via button");
+      fetch('/connect_broker', { method: 'POST' })
+        .then(response => response.json())
+        .then(result => {
+           console.log("Connect broker result:", result);
+           document.getElementById('configStatus').innerText = result.message;
+        })
+        .catch(error => {
+            console.error("Error connecting to broker:", error);
+            document.getElementById('configStatus').innerText = "Error connecting to broker";
+        });
+  });
+</script>
+</body>
+</html>
