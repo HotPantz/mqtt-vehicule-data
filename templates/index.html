@@ -118,8 +118,18 @@
 
   // Initialize Leaflet Map
   var map = L.map('map').setView([48.8566, 2.3522], 12);
-  L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map);
-  var markers = {};
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 19,
+      subdomains: ['a', 'b', 'c'],
+      attribution: 'Map data © OpenStreetMap contributors'
+  }).addTo(map);
+
+  // Refresh map size when the Map tab is shown
+  $('a[data-toggle="tab"]').on('shown.bs.tab', function (e) {
+      if ($(e.target).attr('id') === "map-tab") {
+          map.invalidateSize();
+      }
+  });;
 
   // Handle Configuration Form submission
   document.getElementById('configForm').addEventListener('submit', function(e) {
