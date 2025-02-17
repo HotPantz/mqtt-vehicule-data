@@ -141,7 +141,7 @@ class ProducerApp:
             return
         topic = self.topic_entry.get()
         delay = self.delay_slider.get()
-        client = mqtt.Client("Producer")
+        client = mqtt.Client(client_id="Producer")  # Removed callback_api_version parameter
         try:
             client.connect(broker, port)
             client.loop_start()
