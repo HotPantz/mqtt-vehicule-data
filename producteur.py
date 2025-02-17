@@ -33,7 +33,7 @@ class ProducerApp:
 
         tk.Label(self.config_frame, text="Topic:").grid(row=2, column=0, sticky=tk.W)
         self.topic_entry = tk.Entry(self.config_frame)
-        self.topic_entry.insert(tk.END, "etsi-its-cam-unsecured")
+        self.topic_entry.insert(tk.END, "v2v")
         self.topic_entry.grid(row=2, column=1, sticky=tk.EW)
         self.config_frame.columnconfigure(1, weight=1)
 
@@ -90,7 +90,7 @@ class ProducerApp:
     def choose_files(self):
         files = filedialog.askopenfilenames(
             title="Sélectionnez des fichiers PCAP",
-            filetypes=(("Fichiers PCAPNG", "*.pcapng"), ("Fichiers PCAP", "*.pcap"), ("Tous les fichiers", "*.*"))
+            filetypes=(("Fichiers PCAP", ".pcap"),("Fichiers PCAPNG", ".pcapng"),  ("Tous les fichiers", "."))
         )
         if files:
             self.files = list(files)

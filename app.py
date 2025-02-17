@@ -5,6 +5,7 @@ from flask_socketio import SocketIO
 import paho.mqtt.client as mqtt
 import threading
 from scapy.all import Ether
+import re
 
 # Setup logging
 logging.basicConfig(level=logging.DEBUG,
@@ -33,7 +34,7 @@ def decode_vehicle_info(packet):
     raw = packet.original
     if len(raw) < 68:
         logging.debug("Packet too short for decoding")
-        return "Insufficient data", None, None, None
+        return "Insufficient data", None, None, None, 0
     vehicle_id = raw[26:34].hex()
     timestamp = int.from_bytes(raw[52:56], byteorder='big')
     latitude_int = int.from_bytes(raw[56:60], byteorder='big', signed=True)
@@ -50,10 +51,10 @@ def decode_vehicle_info(packet):
         f"Latitude: {latitude}\n"
         f"Longitude: {longitude}\n"
         f"Speed: {speed} m/s\n"
-        f"Heading: {heading}°"
+        f"Heading: {heading}"
     )
     logging.debug("Decoded info: %s", info)
-    return info, vehicle_id, latitude, longitude
+    return info, vehicle_id, latitude, longitude, heading
 
 def on_connect(client, userdata, flags, rc):
     logging.debug("Connected to MQTT broker with result code %s", rc)
@@ -63,28 +64,42 @@ def on_connect(client, userdata, flags, rc):
 def on_message(client, userdata, message):
     logging.debug("MQTT message received on topic %s", message.topic)
     try:
-        packet = Ether(message.payload)
-        raw_data = packet.show(dump=True)
-        info, vehicle_id, latitude, longitude = decode_vehicle_info(packet)
+        data_str = message.payload.decode('utf-8', errors='replace')
+        logging.debug("Decoded payload (text): %s", data_str)
+        # Extract vehicle_id, latitude, longitude and heading from text payload
+        vehicle_ids = re.findall(r"Vehicle ID:\s*(\S+)", data_str)
+        latitudes = re.findall(r"Latitude:\s*([0-9.]+)", data_str)
+        longitudes = re.findall(r"Longitude:\s*([0-9.]+)", data_str)
+        headings = re.findall(r"Heading:\s*([0-9.]+)", data_str)
+        if vehicle_ids and latitudes and longitudes:
+            vehicle_id = vehicle_ids[-1]
+            latitude = float(latitudes[-1])
+            longitude = float(longitudes[-1])
+            heading = float(headings[-1]) if headings else 0
+            info = f"Vehicle ID: {vehicle_id}, Latitude: {latitude}, Longitude: {longitude}, Heading: {heading}"
+        else:
+            from scapy.all import Ether
+            info, vehicle_id, latitude, longitude, heading = decode_vehicle_info(Ether(message.payload))
+            if not vehicle_id:
+                logging.error("Failed to parse required fields from both text and binary formats")
+                return
+
+        RAW_MESSAGES.append(data_str)
+        TRANSLATED_MESSAGES.append(info)
+        VEHICLE_DATA.setdefault(vehicle_id, []).append([latitude, longitude])
         
-        RAW_MESSAGES.append(raw_data)
-        if info:
-            TRANSLATED_MESSAGES.append(info)
-        if vehicle_id:
-            VEHICLE_DATA.setdefault(vehicle_id, []).append([latitude, longitude])
-        
-        # Emit events for each tab
-        socketio.emit('raw', {'data': raw_data})
+        # Emit events including heading
+        socketio.emit('raw', {'data': data_str})
         socketio.emit('translated', {'data': info})
         socketio.emit('update', {
             'vehicle_id': vehicle_id,
             'latitude': latitude,
-            'longitude': longitude
+            'longitude': longitude,
+            'heading': heading
         })
         logging.debug("Emitted events for vehicle_id: %s", vehicle_id)
     except Exception as e:
         logging.error("Error processing MQTT message: %s", e)
-
 
 # Dans la fonction start_mqtt(), utilisez callback_api_version="1.0" (en chaîne) :
 def start_mqtt():

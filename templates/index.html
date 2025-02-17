@@ -12,6 +12,9 @@
     #map { height: 600px; }
     .tab-content { margin-top: 20px; }
     pre { white-space: pre-wrap; }
+    .leaflet-marker-icon {
+    transform-origin: center center !important;
+  }
   </style>
 </head>
 <body>
@@ -82,7 +85,36 @@
 <script src="//cdnjs.cloudflare.com/ajax/libs/socket.io/4.6.1/socket.io.min.js"></script>
 <!-- Leaflet JS -->
 <script src="https://unpkg.com/leaflet@1.9.3/dist/leaflet.js"></script>
+<script src="https://rawgit.com/bbecquet/Leaflet.RotatedMarker/master/leaflet.rotatedMarker.js"></script>
 <script>
+
+  // Maximum number of lines to keep in the raw and translated containers
+  const MAX_LINES = 100;
+
+  // Append text to a container with a flush after MAX_LINES
+  function appendText(container, newText) {
+      // Append new text with a newline
+      container.innerText += newText + "\n";
+      // Split current text by lines, and keep only the last MAX_LINES
+      const lines = container.innerText.split("\n");
+      if (lines.length > MAX_LINES) {
+          container.innerText = lines.slice(lines.length - MAX_LINES).join("\n");
+      }
+      // Autoscroll to bottom
+      container.scrollTop = container.scrollHeight;
+  }
+
+  // Global markers dict for vehicle markers on the map
+  // Define a custom car icon (make sure to place your car icon image in /static/)
+  var carIcon = L.icon({
+      iconUrl: '/static/arrow.png',
+      iconSize: [32, 32],
+      iconAnchor: [16, 16]
+  });
+
+  // Global markers dict for vehicle markers on the map
+  var markers = {};
+
   // SocketIO connection
   var socket = io();
 
@@ -93,7 +125,6 @@
       console.error("Connection error:", err);
   });
 
-  // Append raw and translated messages with debugging output
   var rawContainer = document.getElementById('rawContainer');
   var translatedContainer = document.getElementById('translatedContainer');
 
@@ -107,29 +138,37 @@
   });
   socket.on('update', function(data) {
       console.log("Update received:", data);
-      // Update marker on the map
-      var id = data.vehicle_id, lat = data.latitude, lon = data.longitude;
+      var id = data.vehicle_id,
+          lat = data.latitude,
+          lon = data.longitude,
+          heading = data.heading;
+      console.log("Processed heading:", heading);
+      
       if (markers[id]) {
           markers[id].setLatLng([lat, lon]);
+          markers[id].setRotationAngle(heading);
       } else {
-          markers[id] = L.marker([lat, lon]).addTo(map).bindPopup("Vehicle ID: " + id);
+          markers[id] = L.marker([lat, lon], {
+              icon: carIcon,
+              rotationAngle: heading,
+              rotationOrigin: 'center center'
+          }).addTo(map).bindPopup("Vehicle ID: " + id);
       }
   });
 
   // Initialize Leaflet Map
-  var map = L.map('map').setView([48.8566, 2.3522], 12);
+  var map = L.map('map').setView([45.0629472, 7.657802777777778], 12);
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       maxZoom: 19,
       subdomains: ['a', 'b', 'c'],
       attribution: 'Map data © OpenStreetMap contributors'
   }).addTo(map);
 
-  // Refresh map size when the Map tab is shown
   $('a[data-toggle="tab"]').on('shown.bs.tab', function (e) {
       if ($(e.target).attr('id') === "map-tab") {
           map.invalidateSize();
       }
-  });;
+  });
 
   // Handle Configuration Form submission
   document.getElementById('configForm').addEventListener('submit', function(e) {
