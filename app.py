@@ -1,11 +1,12 @@
 # app.py (Flask application)
 import logging
+import time
+import re
+import threading
 from flask import Flask, render_template, request, jsonify
 from flask_socketio import SocketIO
 import paho.mqtt.client as mqtt
-import threading
 from scapy.all import Ether
-import re
 
 # Setup logging
 logging.basicConfig(level=logging.DEBUG,
@@ -30,12 +31,15 @@ mqtt_client = None
 mqtt_thread_handle = None
 mqtt_lock = threading.Lock()
 
+# Global variable to store the base vehicle timestamp (from the first packet)
+base_vehicle_timestamp = None
+
 def decode_vehicle_info(packet):
     raw = packet.original
     if len(raw) < 68:
         logging.debug("Packet too short for decoding")
-        return "Insufficient data", None, None, None, 0
-    vehicle_id = raw[26:34].hex()
+        return "Insufficient data", None, None, None, 0, 0, None
+    vehicle_id = int.from_bytes(raw[78:82], byteorder='big')
     timestamp = int.from_bytes(raw[52:56], byteorder='big')
     latitude_int = int.from_bytes(raw[56:60], byteorder='big', signed=True)
     longitude_int = int.from_bytes(raw[60:64], byteorder='big', signed=True)
@@ -54,7 +58,7 @@ def decode_vehicle_info(packet):
         f"Heading: {heading}"
     )
     logging.debug("Decoded info: %s", info)
-    return info, vehicle_id, latitude, longitude, heading
+    return info, vehicle_id, latitude, longitude, speed, heading, timestamp
 
 def on_connect(client, userdata, flags, rc):
     logging.debug("Connected to MQTT broker with result code %s", rc)
@@ -62,46 +66,62 @@ def on_connect(client, userdata, flags, rc):
     logging.debug("Subscribed to topic: %s", MQTT_TOPIC)
 
 def on_message(client, userdata, message):
+    global base_vehicle_timestamp
     logging.debug("MQTT message received on topic %s", message.topic)
     try:
         data_str = message.payload.decode('utf-8', errors='replace')
         logging.debug("Decoded payload (text): %s", data_str)
-        # Extract vehicle_id, latitude, longitude and heading from text payload
+        # Try to extract fields from the text payload
         vehicle_ids = re.findall(r"Vehicle ID:\s*(\S+)", data_str)
         latitudes = re.findall(r"Latitude:\s*([0-9.]+)", data_str)
         longitudes = re.findall(r"Longitude:\s*([0-9.]+)", data_str)
+        speeds = re.findall(r"Speed:\s*([0-9.]+)", data_str)
         headings = re.findall(r"Heading:\s*([0-9.]+)", data_str)
+        # For text messages no timestamp is present.
         if vehicle_ids and latitudes and longitudes:
             vehicle_id = vehicle_ids[-1]
             latitude = float(latitudes[-1])
             longitude = float(longitudes[-1])
+            speed = float(speeds[-1]) if speeds else 0
             heading = float(headings[-1]) if headings else 0
-            info = f"Vehicle ID: {vehicle_id}, Latitude: {latitude}, Longitude: {longitude}, Heading: {heading}"
+            timestamp = int(time.time() * 1000)  # use local time in ms as fallback timestamp
+            info = f"Vehicle ID: {vehicle_id}, Latitude: {latitude}, Longitude: {longitude}, Speed: {speed} m/s, Heading: {heading}"
         else:
-            from scapy.all import Ether
-            info, vehicle_id, latitude, longitude, heading = decode_vehicle_info(Ether(message.payload))
+            # If text parsing fails, try binary decoding via Scapy.
+            info, vehicle_id, latitude, longitude, speed, heading, timestamp = decode_vehicle_info(Ether(message.payload))
             if not vehicle_id:
                 logging.error("Failed to parse required fields from both text and binary formats")
                 return
+
+        # Set the base vehicle timestamp if not already set.
+        if timestamp is None:
+            timestamp = int(time.time() * 1000)
+        if base_vehicle_timestamp is None:
+            base_vehicle_timestamp = timestamp
+
+        # Calculate elapsed vehicle time
+        elapsed = timestamp - base_vehicle_timestamp
 
         RAW_MESSAGES.append(data_str)
         TRANSLATED_MESSAGES.append(info)
         VEHICLE_DATA.setdefault(vehicle_id, []).append([latitude, longitude])
         
-        # Emit events including heading
+        # Emit events including additional timestamp and elapsed time fields.
         socketio.emit('raw', {'data': data_str})
         socketio.emit('translated', {'data': info})
         socketio.emit('update', {
             'vehicle_id': vehicle_id,
             'latitude': latitude,
             'longitude': longitude,
-            'heading': heading
+            'speed': speed,
+            'heading': heading,
+            'timestamp': timestamp,
+            'elapsed': elapsed
         })
-        logging.debug("Emitted events for vehicle_id: %s", vehicle_id)
+        logging.debug("Emitted events for vehicle_id: %s, elapsed: %s ms", vehicle_id, elapsed)
     except Exception as e:
         logging.error("Error processing MQTT message: %s", e)
 
-# Dans la fonction start_mqtt(), utilisez callback_api_version="1.0" (en chaîne) :
 def start_mqtt():
     global mqtt_client, mqtt_thread_handle
     with mqtt_lock:
@@ -110,7 +130,6 @@ def start_mqtt():
                 mqtt_client.disconnect()
             except Exception as e:
                 logging.error("Error disconnecting previous MQTT client: %s", e)
-        # Initialisation du client MQTT sans callback_api_version
         mqtt_client = mqtt.Client(client_id="ConsumerFlask")
         mqtt_client.on_connect = on_connect
         mqtt_client.on_message = on_message

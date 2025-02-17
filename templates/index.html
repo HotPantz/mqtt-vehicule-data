@@ -3,59 +3,70 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Flask App with Tabs & Configuration</title>
+  <title>Vehicle Data Dashboard</title>
   <!-- Bootstrap CSS -->
   <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css">
   <!-- Leaflet CSS for Map -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.3/dist/leaflet.css"/>
   <style>
-    #map { height: 600px; }
-    .tab-content { margin-top: 20px; }
-    pre { white-space: pre-wrap; }
-    .leaflet-marker-icon {
-    transform-origin: center center !important;
-  }
+    #map { height: 600px; margin-bottom: 20px; }
   </style>
 </head>
 <body>
 <div class="container">
-  <h1>Flask App with Tabs & Configuration</h1>
+  <h1 class="my-4">Vehicle Data Dashboard</h1>
+  
   <!-- Nav tabs -->
   <ul class="nav nav-tabs" id="myTab" role="tablist">
     <li class="nav-item">
-      <a class="nav-link active" id="raw-tab" data-toggle="tab" href="#raw" role="tab">Raw Data</a>
+      <a class="nav-link active" id="dashboard-tab" data-toggle="tab" href="#dashboard" role="tab"
+         aria-controls="dashboard" aria-selected="true">Dashboard</a>
     </li>
     <li class="nav-item">
-      <a class="nav-link" id="translated-tab" data-toggle="tab" href="#translated" role="tab">Translated Data</a>
-    </li>
-    <li class="nav-item">
-      <a class="nav-link" id="map-tab" data-toggle="tab" href="#mapTab" role="tab">Map</a>
-    </li>
-    <li class="nav-item">
-      <a class="nav-link" id="config-tab" data-toggle="tab" href="#configTab" role="tab">Configuration</a>
+      <a class="nav-link" id="configTab-tab" data-toggle="tab" href="#configTab" role="tab"
+         aria-controls="configTab" aria-selected="false">Configuration</a>
     </li>
   </ul>
+  
   <!-- Tab panes -->
-  <div class="tab-content" id="myTabContent">
-    <!-- Raw Data Tab -->
-    <div class="tab-pane fade show active" id="raw" role="tabpanel">
-      <h3>Raw Data</h3>
-      <pre id="rawContainer"></pre>
-    </div>
-    <!-- Translated Data Tab -->
-    <div class="tab-pane fade" id="translated" role="tabpanel">
-      <h3>Translated Data</h3>
-      <pre id="translatedContainer"></pre>
-    </div>
-    <!-- Map Tab -->
-    <div class="tab-pane fade" id="mapTab" role="tabpanel">
-      <h3>Map</h3>
+  <div class="tab-content my-3">
+    <!-- Dashboard Tab -->
+    <div class="tab-pane fade show active" id="dashboard" role="tabpanel" aria-labelledby="dashboard-tab">
+      <!-- Map -->
       <div id="map"></div>
+      
+      <!-- Controls: Auto-Clear Trace & Toggle Trace -->
+      <div class="form-inline mb-3">
+        <label for="autoClearToggle" class="mr-2">Auto Clear Trace:</label>
+        <input type="checkbox" id="autoClearToggle" class="mr-3">
+        <label for="clearDelay" class="mr-2">Clear Delay (sec):</label>
+        <input type="range" id="clearDelay" min="5" max="120" value="30" class="mr-2">
+        <span id="clearDelayValue">30</span> sec
+        <button id="toggleTrace" class="btn btn-warning ml-3">Disable Trace</button>
+      </div>
+      
+      <!-- Real-Time Vehicle Data Table (with Elapsed Vehicle Time) -->
+      <h3 class="mt-4">Real-Time Vehicle Data</h3>
+      <table class="table table-striped" id="dataTable">
+        <thead>
+          <tr>
+            <th>Vehicle ID</th>
+            <th>Latitude</th>
+            <th>Longitude</th>
+            <th>Speed (m/s)</th>
+            <th>Heading (°)</th>
+            <th>Elapsed Vehicle Time</th>
+          </tr>
+        </thead>
+        <tbody id="dataBody">
+        </tbody>
+      </table>
     </div>
+    
     <!-- Configuration Tab -->
-    <div class="tab-pane fade" id="configTab" role="tabpanel">
+    <div class="tab-pane fade" id="configTab" role="tabpanel" aria-labelledby="configTab-tab">
       <h3>MQTT Configuration</h3>
-      <form id="configForm">
+      <form id="configForm" class="mb-2">
         <div class="form-group">
           <label for="broker">Broker IP:</label>
           <input type="text" class="form-control" id="broker" name="broker" value="127.0.0.1">
@@ -70,54 +81,100 @@
         </div>
         <button type="submit" class="btn btn-primary">Update Config</button>
       </form>
-      <button id="connectButton" class="btn btn-success mt-3">Connect to Broker</button>
+      <button id="connectButton" class="btn btn-success">Connect to Broker</button>
       <div id="configStatus" class="mt-2"></div>
     </div>
   </div>
 </div>
 
-<!-- jQuery (full version) -->
+<!-- External Scripts -->
 <script src="https://code.jquery.com/jquery-3.2.1.min.js"></script>
-<!-- Popper.js and Bootstrap JS -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.12.9/umd/popper.min.js"></script>
 <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/js/bootstrap.min.js"></script>
 <!-- SocketIO -->
 <script src="//cdnjs.cloudflare.com/ajax/libs/socket.io/4.6.1/socket.io.min.js"></script>
 <!-- Leaflet JS -->
 <script src="https://unpkg.com/leaflet@1.9.3/dist/leaflet.js"></script>
+<!-- Leaflet Rotated Marker Plugin -->
 <script src="https://rawgit.com/bbecquet/Leaflet.RotatedMarker/master/leaflet.rotatedMarker.js"></script>
+
 <script>
+  // Global variable to store the first received vehicle timestamp as base.
+  var baseVehicleTimestamp = null;
 
-  // Maximum number of lines to keep in the raw and translated containers
-  const MAX_LINES = 100;
+  // Global flag for trace enabled/disabled
+  var traceEnabled = true;
 
-  // Append text to a container with a flush after MAX_LINES
-  function appendText(container, newText) {
-      // Append new text with a newline
-      container.innerText += newText + "\n";
-      // Split current text by lines, and keep only the last MAX_LINES
-      const lines = container.innerText.split("\n");
-      if (lines.length > MAX_LINES) {
-          container.innerText = lines.slice(lines.length - MAX_LINES).join("\n");
+  // Format elapsed time (difference between current and base vehicle timestamp) in sec, min, or h.
+  function formatElapsedTime(elapsedMs) {
+      if (elapsedMs < 60000) {
+          return (elapsedMs / 1000).toFixed(2) + " sec";
+      } else if (elapsedMs < 3600000) {
+          return (elapsedMs / 60000).toFixed(2) + " min";
+      } else {
+          return (elapsedMs / 3600000).toFixed(2) + " h";
       }
-      // Autoscroll to bottom
-      container.scrollTop = container.scrollHeight;
   }
 
-  // Global markers dict for vehicle markers on the map
-  // Define a custom car icon (make sure to place your car icon image in /static/)
+  // Define a custom car icon (ensure /static/arrow.png exists)
   var carIcon = L.icon({
       iconUrl: '/static/arrow.png',
       iconSize: [32, 32],
       iconAnchor: [16, 16]
   });
 
-  // Global markers dict for vehicle markers on the map
+  // Global markers for vehicles and polylines for traces.
   var markers = {};
+  var polylines = {};
+  // Storing each vehicle's trace points with their vehicle timestamp.
+  var tracePoints = {};
 
-  // SocketIO connection
+  // Maintain a reference to table rows for real-time updates.
+  var vehicleRows = {};
+
+  // Auto-clear trace controls.
+  var autoClearToggle = document.getElementById('autoClearToggle');
+  var clearDelaySlider = document.getElementById('clearDelay');
+  var clearDelayValue = document.getElementById('clearDelayValue');
+  var autoClearDelay = parseInt(clearDelaySlider.value) * 1000; // in ms
+
+  clearDelaySlider.addEventListener('input', function() {
+      clearDelayValue.innerText = clearDelaySlider.value;
+      autoClearDelay = parseInt(clearDelaySlider.value) * 1000;
+  });
+
+  // Trace toggle button.
+  var toggleTrace = document.getElementById('toggleTrace');
+  toggleTrace.addEventListener('click', function() {
+      traceEnabled = !traceEnabled;
+      toggleTrace.innerText = traceEnabled ? "Disable Trace" : "Enable Trace";
+      // Optionally, clear existing trace from the map when disabling.
+      if (!traceEnabled) {
+          for (var id in polylines) {
+              map.removeLayer(polylines[id]);
+              delete polylines[id];
+          }
+          tracePoints = {};
+      }
+  });
+
+  // Initialize Leaflet Map.
+  var map = L.map('map').setView([45.0629472, 7.657802777777778], 12);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 19,
+      subdomains: ['a', 'b', 'c'],
+      attribution: 'Map data © OpenStreetMap contributors'
+  }).addTo(map);
+
+  // Invalidate map size when switching tabs.
+  $('a[data-toggle="tab"]').on('shown.bs.tab', function (e) {
+      if ($(e.target).attr('id') === "dashboard-tab") {
+          map.invalidateSize();
+      }
+  });
+
+  // Initialize SocketIO connection.
   var socket = io();
-
   socket.on('connect', function() {
       console.log("Connected to SocketIO server");
   });
@@ -125,25 +182,49 @@
       console.error("Connection error:", err);
   });
 
-  var rawContainer = document.getElementById('rawContainer');
-  var translatedContainer = document.getElementById('translatedContainer');
+  // Function to clean old trace points if auto-clear is enabled.
+  function cleanOldTracePoints(vehicleId) {
+      if (!autoClearToggle.checked) return;
+      if (!tracePoints[vehicleId]) return;
+      var currentVehicleTime = null;
+      // Use the last known vehicle timestamp for current time.
+      if (tracePoints[vehicleId].length > 0) {
+          currentVehicleTime = tracePoints[vehicleId][tracePoints[vehicleId].length - 1].t;
+      }
+      if (!currentVehicleTime) return;
+      tracePoints[vehicleId] = tracePoints[vehicleId].filter(function(pt) {
+          return (currentVehicleTime - pt.t) <= autoClearDelay;
+      });
+      if (polylines[vehicleId]) {
+          var newLatLngs = tracePoints[vehicleId].map(function(pt) { return pt.latlng; });
+          polylines[vehicleId].setLatLngs(newLatLngs);
+      }
+  }
 
-  socket.on('raw', function(msg) {
-      console.log("Raw message received:", msg);
-      rawContainer.innerText += msg.data + "\n\n";
-  });
-  socket.on('translated', function(msg) {
-      console.log("Translated message received:", msg);
-      translatedContainer.innerText += msg.data + "\n\n";
-  });
+  // Process update events and update map, trace, and data table.
   socket.on('update', function(data) {
       console.log("Update received:", data);
       var id = data.vehicle_id,
           lat = data.latitude,
           lon = data.longitude,
-          heading = data.heading;
-      console.log("Processed heading:", heading);
+          heading = data.heading,
+          speed = data.speed || 0;
       
+      // Use the vehicle's provided timestamp.
+      // Set the first received timestamp as the base.
+      var vehicleTimestamp = data.timestamp;
+      if (vehicleTimestamp !== undefined) {
+          if (baseVehicleTimestamp === null) {
+              baseVehicleTimestamp = vehicleTimestamp;
+          }
+          // Calculate elapsed time as the difference between this timestamp and the baseline.
+          var elapsed = vehicleTimestamp - baseVehicleTimestamp;
+          var timeStr = formatElapsedTime(elapsed);
+      } else {
+          var timeStr = "N/A";
+      }
+
+      // Update marker on the map with rotated arrow.
       if (markers[id]) {
           markers[id].setLatLng([lat, lon]);
           markers[id].setRotationAngle(heading);
@@ -154,23 +235,48 @@
               rotationOrigin: 'center center'
           }).addTo(map).bindPopup("Vehicle ID: " + id);
       }
-  });
 
-  // Initialize Leaflet Map
-  var map = L.map('map').setView([45.0629472, 7.657802777777778], 12);
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      maxZoom: 19,
-      subdomains: ['a', 'b', 'c'],
-      attribution: 'Map data © OpenStreetMap contributors'
-  }).addTo(map);
-
-  $('a[data-toggle="tab"]').on('shown.bs.tab', function (e) {
-      if ($(e.target).attr('id') === "map-tab") {
-          map.invalidateSize();
+      // If trace is enabled, update trace points and polyline.
+      if (traceEnabled) {
+          if (!tracePoints[id]) {
+              tracePoints[id] = [];
+          }
+          tracePoints[id].push({latlng: [lat, lon], t: vehicleTimestamp});
+          if (!polylines[id]) {
+              polylines[id] = L.polyline([[lat, lon]], {color: 'blue', weight: 3}).addTo(map);
+          } else {
+              if (autoClearToggle.checked) {
+                  cleanOldTracePoints(id);
+              }
+              var currentLatLngs = polylines[id].getLatLngs();
+              currentLatLngs.push([lat, lon]);
+              polylines[id].setLatLngs(currentLatLngs);
+          }
+      }
+      
+      // Update real-time vehicle data table.
+      var tbody = document.getElementById('dataBody');
+      if (!vehicleRows[id]) {
+          var row = document.createElement('tr');
+          row.id = "row_" + id;
+          row.innerHTML = "<td>" + id + "</td>" +
+                          "<td>" + lat.toFixed(6) + "</td>" +
+                          "<td>" + lon.toFixed(6) + "</td>" +
+                          "<td>" + speed.toFixed(2) + "</td>" +
+                          "<td>" + heading.toFixed(2) + "</td>" +
+                          "<td>" + timeStr + "</td>";
+          tbody.appendChild(row);
+          vehicleRows[id] = row;
+      } else {
+          vehicleRows[id].cells[1].innerText = lat.toFixed(6);
+          vehicleRows[id].cells[2].innerText = lon.toFixed(6);
+          vehicleRows[id].cells[3].innerText = speed.toFixed(2);
+          vehicleRows[id].cells[4].innerText = heading.toFixed(2);
+          vehicleRows[id].cells[5].innerText = timeStr;
       }
   });
 
-  // Handle Configuration Form submission
+  // Handle MQTT configuration form submission.
   document.getElementById('configForm').addEventListener('submit', function(e) {
       e.preventDefault();
       var formData = new FormData(e.target);
@@ -188,7 +294,7 @@
         });
   });
   
-  // Handle Connect to Broker button click
+  // Handle Connect to Broker button click.
   document.getElementById('connectButton').addEventListener('click', function() {
       console.log("Connecting to broker via button");
       fetch('/connect_broker', { method: 'POST' })
