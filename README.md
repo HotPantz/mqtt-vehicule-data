@@ -2,7 +2,9 @@
 
 ![Python](https://img.shields.io/badge/Python-3.7%2B-blue) ![MQTT](https://img.shields.io/badge/Protocol-MQTT-orange) ![GUI](https://img.shields.io/badge/GUI-Tkinter-green)
 
-A complete solution for transmitting and decoding vehicle data using the MQTT protocol. This project includes a **producer** and a **consumer** application, both featuring user-friendly GUIs.
+A complete solution for transmitting and decoding vehicle data using the MQTT protocol. This project includes a **producer** application, built with Tkinter, and a **consumer** application featuring a Flask-based graphical interface.
+
+> **Note:** The consumer no longer uses [`consommateur.py`](consommateur.py) as its GUI; instead, it is implemented with [`app.py`](app.py). Also, it is mandatory to use the provided virtual environment (`venv`) for the Flask application to work properly.
 
 ## Table of Contents
 - [Overview](#overview)
@@ -23,8 +25,8 @@ A complete solution for transmitting and decoding vehicle data using the MQTT pr
 ## Overview
 This project enables seamless vehicle data transmission over MQTT. Key features include:
 - 📱 MQTT-based packet transmission
-- 🖥️ GUI for both producer and consumer
-- 📁 PCAP file handling and preview
+- 🖥️ GUI for the producer (Tkinter) and consumer (Flask)
+- 📁 PCAP file handling and preview (producer)
 - ⏱️ Adjustable transmission delay
 - 📊 Real-time progress tracking
 - 🚗 Vehicle data decoding (position, speed, heading)
@@ -56,11 +58,11 @@ cd mqtt-vehicle-data
 ```
 
 ## Virtual Environment Setup
-1. Create a virtual environment:
+1. **Create a virtual environment and use it for the Flask app:**
    ```bash
    python -m venv venv
    ```
-2. Activate the virtual environment:
+2. **Activate the virtual environment:**
    - On Linux/macOS:
      ```bash
      source venv/bin/activate
@@ -69,9 +71,9 @@ cd mqtt-vehicle-data
      ```bash
      venv\Scripts\activate
      ```
-3. Install the required packages:
+3. **Install the required packages:**
    ```bash
-   pip install scapy paho-mqtt flask flask-socketio
+   pip install scapy paho-mqtt flask flask-socketio folium pillow
    ```
 
 ## Network Requirements
@@ -81,7 +83,7 @@ cd mqtt-vehicle-data
 
 ## Broker Setup
 ### Install and Configure Mosquitto
-1. Install Mosquitto MQTT broker:
+1. **Install Mosquitto MQTT broker:**
    - Ubuntu/Debian:
      ```bash
      sudo apt-get install mosquitto mosquitto-clients
@@ -90,7 +92,7 @@ cd mqtt-vehicle-data
      ```bash
      sudo pacman -S mosquitto
      ```
-2. Configure Mosquitto to allow anonymous connections (for testing):
+2. **Configure Mosquitto to allow anonymous connections (for testing):**
    ```ini
    sudo nano /etc/mosquitto/mosquitto.conf
    ```
@@ -99,7 +101,7 @@ cd mqtt-vehicle-data
    allow_anonymous true
    listener 1883 0.0.0.0
    ```
-3. Restart Mosquitto service:
+3. **Restart Mosquitto service:**
    ```bash
    sudo systemctl restart mosquitto
    ```
@@ -111,7 +113,7 @@ cd mqtt-vehicle-data
    ```bash
    python producteur.py
    ```
-2. GUI Controls:
+2. **GUI Controls:**
    - 🗃 **Select Files**: Choose PCAP files to send
    - 👁 **Preview**: Display packet summaries before transmission
    - ⏱️ **Transmission Delay**: Adjust delay between packets (0-1s)
@@ -122,11 +124,12 @@ cd mqtt-vehicle-data
 ![Producer GUI](https://via.placeholder.com/600x400?text=Producer+GUI+Preview)
 
 ### Consumer Instructions
-1. Start the consumer application:
+1. **Activate the virtual environment before starting the Flask app.**
+2. Start the consumer application:
    ```bash
    python app.py
    ```
-2. GUI Features:
+3. **GUI Features (accessed via a web browser):**
    - 🛡 **Connect** to broker with IP, Port, and Topic
    - 📨 **View Raw Packets** in real time
    - 🚘 **Decoded Vehicle Data** (position, speed, heading)
@@ -138,16 +141,19 @@ cd mqtt-vehicle-data
 ## File Structure
 ```
 mqtt-vehicle-data/
-├── consommateur.py        # Consumer application(not used anymore)
-├── producteur.py          # Producer application
+├── app.py                 # Flask application for dynamic map display (consumer)
+├── producteur.py          # Producer application (Tkinter based)
 ├── etsi-its-cam-secured.pcapng    # Sample PCAP file (secured)
 ├── etsi-its-cam-unsecured.pcapng  # Sample PCAP file (unsecured)
-├── app.py                 # Flask application for dynamic map display
 ├── templates/
-│   └── index.html         # HTML template for Consumer application
+│   └── index.html         # HTML template for the consumer application
+├── venv/                  # Virtual environment (mandatory for the Flask app)
 └── README.md              # This documentation
 ```
 
+## Sample Data
+- *etsi-its-cam-secured.pcapng*
+- *etsi-its-cam-unsecured.pcapng*
 
 ## Troubleshooting
 - 🔗 **Connection Issues**: Ensure all devices are on the same network and verify broker IP/port.
@@ -168,4 +174,3 @@ For any questions or support, please contact:
 ---
 
 **Happy vehicular data streaming!** 🚗💨
-
