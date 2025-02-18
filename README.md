@@ -71,7 +71,7 @@ cd mqtt-vehicle-data
      ```
 3. Install the required packages:
    ```bash
-   pip install scapy paho-mqtt flask flask-socketio folium pillow
+   pip install scapy paho-mqtt flask flask-socketio
    ```
 
 ## Network Requirements
@@ -124,7 +124,7 @@ cd mqtt-vehicle-data
 ### Consumer Instructions
 1. Start the consumer application:
    ```bash
-   python consommateur.py
+   python app.py
    ```
 2. GUI Features:
    - 🛡 **Connect** to broker with IP, Port, and Topic

@@ -1,4 +1,3 @@
-# app.py (Flask application)
 import logging
 import time
 import re
@@ -66,6 +65,11 @@ def on_connect(client, userdata, flags, rc):
     logging.debug("Subscribed to topic: %s", MQTT_TOPIC)
 
 def on_message(client, userdata, message):
+    # Ignore any packets that are not CAM (payload length != 121)
+    if len(message.payload) != 121:
+        logging.debug("Ignoring non-CAM packet with payload length: %s", len(message.payload))
+        return
+
     global base_vehicle_timestamp
     logging.debug("MQTT message received on topic %s", message.topic)
     try:
